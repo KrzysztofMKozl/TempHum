@@ -3,6 +3,9 @@
 #include <WiFi.h>
 #include <HTTPClient.h>
 #include <Arduino_JSON.h>
+#include <Wire.h>
+#include <LiquidCrystal_I2C.h>
+
 
 
 #define HOT   13
@@ -12,6 +15,8 @@
 #define DHTPIN 17
 #define DHTTYPE DHT22
 
+
+
 const char* serverGet = "https://api.restful-api.dev:80/objects/7";
 
 const char* serverPost = "https://api.restful-api.dev:80/";
@@ -19,6 +24,10 @@ String settings;
 
 
 int status = WL_IDLE_STATUS;
+
+int lcdColumns = 16;
+int lcdRows = 2;
+LiquidCrystal_I2C lcd(0x27, lcdColumns, lcdRows);
 
 const char* ssid = "Kkoz";
 const char* password = "12345678";
@@ -29,11 +38,13 @@ DHT dht(DHTPIN, DHTTYPE);
 float temp,tempMin,tempMax;
 float hum,humMin,humMax;
 
-unsigned long lastTime = 0;
-unsigned long timerDelay = 5000;
+int dp = 0;
+JSONVar vege;
 
 void setup()
 {
+    lcd.init();
+    lcd.backlight();
     temp = 0;
     tempMin=10;
     tempMax=20;
@@ -68,7 +79,6 @@ void setup()
 
 void loop()
 {   
-    
     hum = dht.readHumidity();
     temp= dht.readTemperature();
 
@@ -92,13 +102,15 @@ void loop()
         Serial.print(" = ");
         Serial.println(value);
       }
+      //vege = myObject[keys[0]];
+      vege = "pomidor";
       humMax = 5 + atof(myObject[keys[0]]);
       tempMax = 2 + atof(myObject[keys[0]]);
       humMin = humMax - 10;
       tempMin = tempMax - 4;
 
     }
-    
+
     outputLedsSet();
     Serial.print(F("Humidity: "));
     Serial.print(hum);
@@ -109,7 +121,13 @@ void loop()
     Serial.print(F("%  Temperature Max: "));
     Serial.print(tempMax);
     Serial.println(F("°C "));
+
+    
+    display(dp);
+    if(dp == 2)dp=0;
+    else dp++;
     delay(10000);
+
 }
 
 void outputLedsSet(){
@@ -180,4 +198,22 @@ void httpPOSTRequest(const char* serverName) {
 
   http.end();
 
+}
+
+void display(int x){
+  lcd.clear();
+  lcd.setCursor(0, 0);
+  if(x == 0){
+    lcd.print(vege);
+  }
+  else if(x == 1){
+    lcd.print("temp");
+    lcd.setCursor(0, 1);
+    lcd.print(temp);
+  }
+  else if(x == 2){
+    lcd.print("hum");
+    lcd.setCursor(0, 1);
+    lcd.print(hum);
+  }
 }
