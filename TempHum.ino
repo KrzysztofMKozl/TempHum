@@ -12,7 +12,9 @@
 #define DHTPIN 17
 #define DHTTYPE DHT22
 
-const char* server = "https://api.restful-api.dev:80/objects/7";
+const char* serverGet = "https://api.restful-api.dev:80/objects/7";
+
+const char* serverPost = "https://api.restful-api.dev:80/";
 String settings;
 
 
@@ -26,9 +28,12 @@ DHT dht(DHTPIN, DHTTYPE);
 
 float temp,tempMin,tempMax;
 float hum,humMin,humMax;
+
+unsigned long lastTime = 0;
+unsigned long timerDelay = 5000;
+
 void setup()
 {
-
     temp = 0;
     tempMin=10;
     tempMax=20;
@@ -56,10 +61,20 @@ void setup()
     Serial.print("Local ESP32 IP: ");
     Serial.println(WiFi.localIP());
 
-    // Serial monitor setup
+    
+}
+
+
+
+void loop()
+{   
+    
+    hum = dht.readHumidity();
+    temp= dht.readTemperature();
+
     if(WiFi.status()== WL_CONNECTED){
               
-      settings = httpGETRequest(server);
+      settings = httpGETRequest(serverGet);
       Serial.println(settings);
       JSONVar myObject = JSON.parse(settings);
   
@@ -77,27 +92,22 @@ void setup()
         Serial.print(" = ");
         Serial.println(value);
       }
-//      humMax = 5 + float(myObject[keys[1]]);
-//      tempMax = 2 + float(myObject[keys[2]]);
-//      humMin = humMax - 10;
-//      tempMin = tempMax - 4;
+      humMax = 5 + atof(myObject[keys[0]]);
+      tempMax = 2 + atof(myObject[keys[0]]);
+      humMin = humMax - 10;
+      tempMin = tempMax - 4;
 
     }
-    
-    }
-
-
-
-void loop()
-{
-    hum = dht.readHumidity();
-    temp= dht.readTemperature();
     
     outputLedsSet();
     Serial.print(F("Humidity: "));
     Serial.print(hum);
     Serial.print(F("%  Temperature: "));
     Serial.print(temp);
+    Serial.print(F("Humidity Max: "));
+    Serial.print(humMax);
+    Serial.print(F("%  Temperature Max: "));
+    Serial.print(tempMax);
     Serial.println(F("°C "));
     delay(10000);
 }
@@ -147,8 +157,27 @@ String httpGETRequest(const char* serverName) {
     Serial.print("Error code: ");
     Serial.println(httpResponseCode);
   }
-  // Free resources
+
   http.end();
 
   return payload;
+}
+void httpPOSTRequest(const char* serverName) {
+  WiFiClient client;
+  HTTPClient http;
+  JSONVar myObject;
+    
+  http.begin(client, serverName);
+  http.addHeader("Content-Type", "application/json");
+
+  myObject["temp"] = temp;
+  myObject["hum"] = hum;
+  
+  int httpResponseCode = http.POST(myObject);
+  
+  Serial.print("HTTP Response code: ");
+  Serial.println(httpResponseCode);
+
+  http.end();
+
 }
