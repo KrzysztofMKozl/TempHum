@@ -15,59 +15,67 @@
 #define DHTPIN 17
 #define DHTTYPE DHT22
 
-
-
+//requesty do serwera
 const char* serverGet = "https://api.restful-api.dev:80/objects/7";
 
 const char* serverPost = "https://api.restful-api.dev:80/";
+//string na odpowiedź
 String settings;
 
-
-int status = WL_IDLE_STATUS;
-
+//setup LCD
 int lcdColumns = 16;
 int lcdRows = 2;
 LiquidCrystal_I2C lcd(0x27, lcdColumns, lcdRows);
+int dp = 0;
 
+
+//setup WiFi
 const char* ssid = "Kkoz";
 const char* password = "12345678";
+int status = WL_IDLE_STATUS;
 
+//setup czujnika
 DHT dht(DHTPIN, DHTTYPE);
 
 
 float temp,tempMin,tempMax;
 float hum,humMin,humMax;
 
-int dp = 0;
+
 JSONVar vege;
 
 void setup()
 {
     lcd.init();
     lcd.backlight();
+
+    //ustawienie default temp i hum
     temp = 0;
     tempMin=10;
     tempMax=20;
     hum = 25;
     humMin = 40;
     humMax = 60;
-    // Set LED as output
+    // ustawienie output dla led
     pinMode(HOT, OUTPUT);
     pinMode(COLD, OUTPUT);
     pinMode(WET, OUTPUT);
     pinMode(DRY, OUTPUT);
     
+    //uruchom komunikacje seryjną
     Serial.begin(9600);
     Serial.println(F("DHTxx test!"));
+  
+    //uruchom czujnik
     dht.begin();
 
+    //połącz z wifi
     WiFi.mode(WIFI_STA);
     WiFi.begin(ssid, password);
         while(WiFi.status() != WL_CONNECTED){
         Serial.print(".");
         delay(100);
     }
-
     Serial.println("\nConnected to the WiFi network");
     Serial.print("Local ESP32 IP: ");
     Serial.println(WiFi.localIP());
@@ -79,15 +87,16 @@ void setup()
 
 void loop()
 {   
+    //zczytaj temp i hum
     hum = dht.readHumidity();
     temp= dht.readTemperature();
-
     if(WiFi.status()== WL_CONNECTED){
-              
+    //wysłanie GET request po ustawienia          
       settings = httpGETRequest(serverGet);
-      Serial.println(settings);
+
       JSONVar myObject = JSON.parse(settings);
-  
+
+
       if (JSON.typeof(myObject) == "undefined") {
         Serial.println("Parsing input failed!");
         return;
@@ -95,14 +104,9 @@ void loop()
     
       Serial.print("JSON object = ");
       Serial.println(myObject);
+      //wybranie danych z JSON
       JSONVar keys = myObject.keys();
-      for (int i = 0; i < keys.length(); i++) {
-        JSONVar value = myObject[keys[i]];
-        Serial.print(keys[i]);
-        Serial.print(" = ");
-        Serial.println(value);
-      }
-      //vege = myObject[keys[0]];
+    //vege = myObject[keys[0]];
       vege = "pomidor";
       humMax = 5 + atof(myObject[keys[0]]);
       tempMax = 2 + atof(myObject[keys[0]]);
@@ -110,8 +114,10 @@ void loop()
       tempMin = tempMax - 4;
 
     }
-
+    //zapalenie diod
     outputLedsSet();
+    
+    //wyczytane dane na serial
     Serial.print(F("Humidity: "));
     Serial.print(hum);
     Serial.print(F("%  Temperature: "));
@@ -122,14 +128,16 @@ void loop()
     Serial.print(tempMax);
     Serial.println(F("°C "));
 
-    
+    //wyświetlanie danych na LCD
     display(dp);
     if(dp == 2)dp=0;
     else dp++;
+
+
     delay(10000);
 
 }
-
+//funkcja sterująca diodami
 void outputLedsSet(){
   if(temp < tempMin){
     digitalWrite(COLD,HIGH);
@@ -156,6 +164,7 @@ void outputLedsSet(){
   }
 }
 
+
 String httpGETRequest(const char* serverName) {
   WiFiClient client;
   HTTPClient http;
@@ -180,6 +189,7 @@ String httpGETRequest(const char* serverName) {
 
   return payload;
 }
+
 void httpPOSTRequest(const char* serverName) {
   WiFiClient client;
   HTTPClient http;
@@ -200,6 +210,7 @@ void httpPOSTRequest(const char* serverName) {
 
 }
 
+//funkcja sterująca LCD
 void display(int x){
   lcd.clear();
   lcd.setCursor(0, 0);
